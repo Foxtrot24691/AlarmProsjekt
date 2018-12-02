@@ -1,0 +1,54 @@
+// eksempel på bruk av interrupt ved styring av step-motor.
+// koble til step-motoren, og put inn ønsket posisjon 0-512.
+#include "mbed.h"
+ 
+Serial pc(USBTX, USBRX); // tx, rx
+int present, wanted;
+char s[4];
+BusOut StepMotor(PA_9, PC_7, PB_6, PA_7);
+
+
+// Interupt Routine to read in data from serial port
+void Rx_interrupt() {
+    if (pc.readable()) {
+        pc.gets(s,4);
+        pc.puts(s);
+        wanted = atoi(s);}}
+        
+void CW(){
+    StepMotor = 0x9; // 1001
+    wait_ms(10);
+    StepMotor = 0xC; // 1100
+    wait_ms(10);
+    StepMotor = 0x6; // 0110
+    wait_ms(10);
+    StepMotor = 0x3; // 0011
+    wait_ms(10);
+    present++;
+    pc.printf("%4d : %6.2f grader\n", present, (present*360/(float)512));}
+    
+void CCW(){
+    StepMotor = 0x6; // 1001
+    wait_ms(10);
+    StepMotor = 0xC; // 1100
+    wait_ms(10);
+    StepMotor = 0x9; // 0110
+    wait_ms(10);
+    StepMotor = 0x3; // 0011
+    present--;
+     pc.printf("%4d : %6.2f grader\n", present, (present*360/(float)512));}
+
+int main() 
+{ 
+    pc.baud(9600);
+    present = 0;
+    
+// Setup a serial interrupt function to receive data
+    pc.attach(&Rx_interrupt, Serial::RxIrq);
+
+    while (true) {
+        if (present < wanted) CW();
+        else if (present > wanted) CCW();
+        else StepMotor = 0x0;
+    }
+}
